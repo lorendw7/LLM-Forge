@@ -6,3 +6,4 @@
 /models/test.csv
 /models/train.csv
 /models/validation.csv
+/models/review_classifier.pth
