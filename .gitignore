@@ -7,3 +7,5 @@
 /models/train.csv
 /models/validation.csv
 /models/review_classifier.pth
+/models/gpt2-small124M-sft.pth
+/models/instruction-data-with-response.json
