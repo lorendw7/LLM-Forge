@@ -1,6 +1,26 @@
-## LLM-Forge
+# LLM-Forge
 
-### 项目简介
+## Project Introduction
+
+This project strictly implements a complete large language model development pipeline following the three-stage framework in the book *Build a Large Language Model (From Scratch)*:
+
+1. Stage 1: Build the LLM Core
+   - Implement data sampling and preprocessing pipeline
+   - Implement multi-head attention and Transformer decoder-only architecture
+   - Complete model initialization and forward propagation
+
+2. Stage 2: Pre-train the Foundation Model
+   - Implement autoregressive language model training loop
+   - Integrate AdamW optimizer, learning rate scheduler, and gradient clipping
+   - Pre-train on unlabeled text corpus to obtain a usable base model
+
+3. Stage 3: Downstream Task Fine-tuning
+   - Parameter-efficient fine-tuning based on pre-trained weights
+   - Adapt to text classification and build multi-class classifiers
+   - Adapt to instruction following and build chat / assistant models
+
+
+## 项目简介
 
 本项目严格按照《Build a Large Language Model (From Scratch)》一书的三阶段框架，实现了一个完整的LLM开发流程：
 
