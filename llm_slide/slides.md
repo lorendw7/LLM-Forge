@@ -211,6 +211,88 @@ $$\text{Attention}(Q,K,V)=\text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right)V$$
 <img src="./images/attention_mechanisms.png" class="rounded shadow w-[600px] mx-auto"/>
 
 ---
+# Scaled Dot-Product Self-Attention Mathematical Formulation
+## Fully Corresponding to the Provided Diagram
+Variable definitions strictly match all symbols ($d_{in},d_{out},n,X,Q,K,V,A,Z$) and data dimensions in the figure.
+
+---
+
+## 1. Linear Projection: Input Embedding → Query / Key / Value
+Map original input token embedding matrix $X$ to Query $Q$, Key $K$, Value $V$ matrices via 3 trainable projection weight matrices.
+
+### Mathematical Formula
+$$
+\begin{align*}
+Q &= X W_q \\
+K &= X W_k \\
+V &= X W_v
+\end{align*}
+$$
+
+---
+
+### English Explanation
+- $X \in \mathbb{R}^{n \times d_{in}}$: Input token embedding matrix
+  $n=6$ (total number of input tokens), $d_{in}=3$ (dimension of each input token embedding vector)
+- $W_q,W_k,W_v \in \mathbb{R}^{d_{in} \times d_{out}}$: Trainable learnable weight projection matrices
+- $Q,K,V \in \mathbb{R}^{n \times d_{out}}$: Projected Query, Key, Value matrices
+  $d_{out}=2$ (output dimension after attention projection)
+- $q^{(2)} \in \mathbb{R}^{1 \times d_{out}}$: Query vector of the **2nd input token**, which is exactly the second row of matrix $Q$ in the diagram
+
+---
+
+## 2. Compute Raw Unnormalized Attention Scores
+Calculate pairwise dot-product similarity scores between every Query vector and every Key vector.
+
+### Mathematical Formula
+$$
+\text{Raw Attention Score} = Q K^\top
+$$
+
+### English Explanation
+- $K^\top$: Matrix transpose of Key matrix $K$
+- Output shape: $\boldsymbol{n \times n}$ (6×6 matrix, exactly the orange attention score matrix in your diagram)
+- Each entry $\text{score}_{ij}$: Similarity attention score between the query vector of token $i$ and the key vector of token $j$
+
+---
+
+## 3. Scaled Dot Product + Softmax Normalization
+Scale raw scores to avoid gradient saturation, then apply row-wise Softmax to get normalized attention weights (each row sums to 1).
+
+### Mathematical Formula
+$$
+A = \text{Softmax}\left( \frac{Q K^\top}{\sqrt{d_{out}}} \right)
+$$
+
+### English Explanation
+- $\sqrt{d_{out}}$: Scaling factor, used to stabilize the variance of dot-product scores
+- $A \in \mathbb{R}^{n \times n}$: Final normalized attention weight matrix (the orange attention weight matrix in the diagram)
+- Each row of matrix $A$: Attention weight distribution of one input token over all 6 input tokens
+
+---
+
+## 4. Compute Final Context Vectors
+Weighted sum of all Value vectors, using attention weights $A$ as coefficients, to get output context vectors.
+
+### Mathematical Formula
+$$
+Z = A V
+$$
+
+### English Explanation
+- $Z \in \mathbb{R}^{n \times d_{out}}$: Full context vector matrix for all input tokens
+- $z^{(2)} \in \mathbb{R}^{1 \times d_{out}}$: Context vector corresponding to the **2nd input token**, which is the second row of matrix $Z$ (pink context vector box in the diagram)
+- Each context vector is a weighted aggregation of all value vectors in $V$, weighted by normalized attention scores.
+
+---
+
+## Complete Compact Self-Attention Formula
+Combine all 4 steps into the standard unified scaled dot-product attention formula:
+$$
+\boldsymbol{\text{Self-Attention}(X) = \text{Softmax}\left( \frac{X W_q (X W_k)^\top}{\sqrt{d_{out}}} \right) X W_v}
+$$
+
+---
 
 # Why causal masking is essential
 
@@ -253,9 +335,55 @@ Different heads may capture:
 One head is one pattern detector; many heads create richer relational reasoning.
 
 ---
+# Multi-Head Attention Mechanism
+## Fully Matches the Provided Diagram (2 Attention Heads, $d_{in}=3$, Single Head $d_{out}=2$)
+Concise & accurate English explanations + mathematical formulas.
+
+---
+
+## Core Concept
+Multi-Head Attention splits attention computation into **multiple independent parallel single attention heads**, extracts different types of contextual information from each head, then concatenates all head outputs to get the final feature.
+
+This diagram uses **2 attention heads** as example.
+
+---
 
 <img src="./images/muti_head_attention.png"
  class="rounded shadow w-[600px] mx-auto"/>
+
+---
+
+## Step 1: Independent Single Head Attention Calculation
+Each attention head runs the scaled dot-product self-attention independently with its own trainable projection weights $W_q^h,W_k^h,W_v^h$.
+
+For head $h$ ($h=1,2$ in this diagram):
+$$
+Z_h = \text{SelfAttention}_h(X)
+= \text{Softmax}\left( \frac{X W_q^h (X W_k^h)^\top}{\sqrt{d_{head}}} \right) X W_v^h
+$$
+
+### English Explanation
+- Each head $h$ outputs a context matrix $Z_h$
+- In diagram: each single head has output dimension $d_{head}=d_{out}=2$
+- All heads process the same input embedding matrix $X$ in parallel
+- Heads do not share weights, each learns different attention patterns
+
+---
+
+## Step 2: Concatenate All Head Outputs
+Horizontally concatenate context matrices from every attention head along the feature dimension.
+
+Formula for 2 heads:
+$$
+Z = \text{Concat}(Z_1,\;Z_2)
+$$
+
+### English Explanation
+- $Z_1$: Context matrix from head 1
+- $Z_2$: Context matrix from head 2
+- Concatenation is done on the embedding dimension (columns)
+- Final concatenated dimension = single head dimension × number of heads
+- In diagram: final $d_{out}=2 \times 2=4$
 
 ---
 
@@ -277,7 +405,7 @@ A typical block contains:
 ---
 
 <img src="./images/gpt_model.png"
- class="rounded shadow w-[400px] mx-auto"/>
+ class="rounded shadow w-[460px] mx-auto"/>
 
 ---
 
