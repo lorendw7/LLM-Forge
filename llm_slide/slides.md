@@ -387,6 +387,167 @@ $$
 
 ---
 
+### What problem does it solve?
+
+`Multi-Head Attention` lets each token look at other tokens in the sequence and decide **which information is important**.  
+In decoder-style attention, we also use a **causal mask** so that a token cannot see future tokens.
+
+> Multi-Head Attention allows the model to attend to different positions in parallel.  
+> Each head learns a different view of the sequence.  
+> The causal mask ensures autoregressive decoding.
+
+---
+
+## Multi-Head Attention Implementation
+
+### Input / Output
+
+Explain only the interface first.
+
+```python
+class MultiHeadAttention(nn.Module):
+    def __init__(self, d_in, d_out, context_length, dropout, num_heads):
+        ...
+```
+
+- `d_in`: input dimension of each token
+- `d_out`: output dimension after attention
+- `num_heads`: number of parallel attention heads
+- `context_length`: maximum sequence length for the mask
+
+---
+
+### Q, K, V projection
+
+Show only the projection part.
+
+```python
+self.W_query = nn.Linear(d_in, d_out, bias=qkv_bias)
+self.W_key   = nn.Linear(d_in, d_out, bias=qkv_bias)
+self.W_value = nn.Linear(d_in, d_out, bias=qkv_bias)
+```
+
+- The same input `x` is projected into three spaces:
+  - **Query**: what this token is looking for
+  - **Key**: what this token offers
+  - **Value**: the actual information carried by the token
+
+---
+
+### Split into multiple heads
+
+Show the reshape + transpose logic.
+
+```python
+queries = queries.view(b, num_tokens, self.num_heads, self.head_dim).transpose(1, 2)
+keys    = keys.view(b, num_tokens, self.num_heads, self.head_dim).transpose(1, 2)
+values  = values.view(b, num_tokens, self.num_heads, self.head_dim).transpose(1, 2)
+```
+
+---
+
+### Attention scores + mask
+This is the most important slide.
+
+```python
+attn_scores = queries @ keys.transpose(2, 3)
+mask_bool = self.mask.bool()[:num_tokens, :num_tokens]
+attn_scores.masked_fill_(mask_bool, -torch.inf)
+attn_weights = torch.softmax(attn_scores / keys.shape[-1]**0.5, dim=-1)
+```
+
+---
+
+### Weighted sum + output projection
+Show the final aggregation.
+
+```python
+context_vec = (attn_weights @ values)
+context_vec = context_vec.transpose(1, 2).contiguous().view(b, num_tokens, self.d_out)
+context_vec = self.out_proj(context_vec)
+```
+
+---
+
+## Code Snippet
+
+```python {*}{maxHeight:'60vh'}
+import torch
+import torch.nn as nn
+
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, d_in, d_out, context_length, dropout, num_heads, qkv_bias=False):
+        super().__init__()
+
+        assert d_out % num_heads == 0, "d_out must be divisible by num_heads"
+
+        self.d_out = d_out
+        self.num_heads = num_heads
+        self.head_dim = d_out // num_heads
+
+        # Linear projections for Q, K, V
+        self.W_query = nn.Linear(d_in, d_out, bias=qkv_bias)
+        self.W_key = nn.Linear(d_in, d_out, bias=qkv_bias)
+        self.W_value = nn.Linear(d_in, d_out, bias=qkv_bias)
+
+        self.out_proj = nn.Linear(d_out, d_out)
+        self.dropout = nn.Dropout(dropout)
+
+        # Causal mask: future tokens are blocked
+        # 未来のtokenを見えないようにする
+        self.register_buffer(
+            "mask",
+            torch.triu(torch.ones(context_length, context_length), diagonal=1)
+        )
+
+    def forward(self, x):
+        # x: [batch_size, num_tokens, d_in]
+        b, num_tokens, _ = x.shape
+
+        # Step 1: project input into Q, K, V
+        queries = self.W_query(x)
+        keys = self.W_key(x)
+        values = self.W_value(x)
+
+        # Step 2: split into multiple heads
+        # 各headで並列にattentionを計算する
+        queries = queries.view(b, num_tokens, self.num_heads, self.head_dim).transpose(1, 2)
+        keys = keys.view(b, num_tokens, self.num_heads, self.head_dim).transpose(1, 2)
+        values = values.view(b, num_tokens, self.num_heads, self.head_dim).transpose(1, 2)
+
+        # Step 3: compute attention scores
+        attn_scores = queries @ keys.transpose(2, 3)
+
+        # Step 4: apply causal mask
+        mask_bool = self.mask.bool()[:num_tokens, :num_tokens]
+        attn_scores.masked_fill_(mask_bool, -torch.inf)
+
+        # Step 5: normalize scores into attention weights
+        # softmaxで重み化する
+        attn_weights = torch.softmax(attn_scores / (self.head_dim ** 0.5), dim=-1)
+        attn_weights = self.dropout(attn_weights)
+
+        # Step 6: weighted sum of value vectors
+        context_vec = attn_weights @ values
+
+        # Step 7: merge heads
+        context_vec = context_vec.transpose(1, 2).contiguous().view(b, num_tokens, self.d_out)
+
+        # Step 8: final output projection
+        output = self.out_proj(context_vec)
+        return output
+```
+
+---
+
+## One-line summary
+
+**Multi-Head Attention = project to Q/K/V → split into heads → compute masked attention → aggregate values → merge heads**
+
+
+---
+
 # A Transformer block in one view
 
 A typical block contains:
