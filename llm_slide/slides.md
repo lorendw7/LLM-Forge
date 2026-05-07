@@ -883,6 +883,10 @@ A compact repo, but a complete story:
 
 ---
 
+<img src="./images/bllm_book.png" class="border border-gray-300 rounded-lg shadow-lg w-[600px] mx-auto" />
+
+---
+
 # Thank You
 
 ## LLM-Forge as a learning path
